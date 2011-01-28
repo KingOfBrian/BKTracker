@@ -1,0 +1,63 @@
+BKTracker
+=========
+
+BKTracker is a state tracking system to take snapshots of your application state for user defined 'events'.   This was written to enhance the analytic data that I gather for my iphone applications.   The primary design goals were to:
+
+- Add time based information like:
+   - Amount of time in a state
+   - Amount of time since last event 
+
+- Easily Collect application state
+   - Grab application and data-set information every time an event occurs
+   - Application state is independent of what event occurs
+   - Better to have more data than less
+
+
+The code is a simple singleton that allows you to name states and add KeyPath to Name variables.   IE:
+
+    - (void) addState:(NSString*)stateName;
+    - (void) addVariable:(NSString*)variableName keypath:(NSString*)keypath toState:(NSString*)stateName;
+
+Then whenever an event occurs, it evaluates the keypaths on the
+instance object giving all sorts of data points to correlate with the event.   
+
+This is wrapped up in a UIViewController Category, to give you an API like this:
+
+     - (void) viewDidLoad {
+          self.trackerState = @"ProjectView";
+          [self trackKeyPath:@"lapse.shots.@count" as:@"Shot Count"];
+          [self trackKeyPath:@"lapse.reminders.@count" as:@"Reminder Count"];
+          [self trackKeyPath:@"swapCount" as:@"Swap Count"];
+     }
+    
+    - (void) viewDidAppear:(BOOL)animated {
+        [self enterTrackerState];
+    }
+    
+    - (void) viewDidDisappear:(BOOL)animated {
+        [self exitTrackerState];
+    }
+    
+    - (IBAction) buttonClicked {
+        [self trackEvent:@"TrackMe"
+    }
+
+Then when buttonClicked is called, my delegate gets triggered and can send the dictionary to an analytic service like mixpanel or localytics.
+
+    delegateEvent:TrackMe attributes:{
+        "Project Count" = 2;
+        "Reminder Count" = 0;
+        "Swap Count" = 4;
+    }
+
+
+One design decision that I would like feedback on is making the UIViewController enhancements a category and not a subclass.   I did this because I want it to be easy to plug into apps, and I do not like using libraries that force me to use their UIViewController subclass.   What if I have my own generic subclass and already use this other cool project that has it's own UIViewController subclass?!   
+
+Along that line, There are routines in there to swizzle viewDidAppear and viewDidDisappear rather than writing that long, lengthy, wordy [self enterTrackerState] command.   The options as I see them are below:
+
+* 1 Be verbose juggling state
+* 2 Subclass UIViewController
+* 3 Extend and Swizzle UIViewController
+* 4 Have UIKit emit NSNotifications on view[Did|Will][Disa|A]ppear] events.
+
+Ideally 4 would occur, but it doesn't.   So I'm stuck with 1.
